@@ -125,12 +125,23 @@ async fn main_async() {
             set_timeout(Duration::from_secs(3)).await;
 
             println!("Trying to move icon");
+
             let echo_child_mv = Command::new("mv")
                 .args(["./icons.icns", &app_icon_path[..]])
                 .stdout(Stdio::piped())
                 .spawn()
                 .expect("Failed to start echo process");
             drop(echo_child_mv);
+
+            println!("Clearing cache");
+            set_timeout(Duration::from_secs(3)).await;
+
+            let echo_child_rm = Command::new("bash")
+                .args(["-c", "rm /var/folders/*/*/*/com.apple.dock.iconcache; killall Dock"])
+                .stdout(Stdio::piped())
+                .spawn()
+                .expect("Failed to start echo process");
+            drop(echo_child_rm);
 
             println!("Icon moved");
             
