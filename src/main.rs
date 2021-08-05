@@ -1,6 +1,4 @@
 use std::io;
-use std::fs;
-use std::path::Path;
 use std::time::Duration;
 use settimeout::set_timeout;
 use futures::executor::block_on;
@@ -10,7 +8,6 @@ struct IconParameters {
     pub width: u32,
     pub scale: u8,
 }
-
 
 impl IconParameters {
     fn get_icon_name(&self) -> String {
@@ -53,17 +50,8 @@ fn app_collect() -> String {
     println!("Drag your app here");
     let mut app_path_string = String::new();
     io::stdin().read_line(&mut app_path_string).expect("Not a valid path of a application!");
-    app_path_string = format!("{}/Contents/Resources/", app_path_string.trim().replace("'", ""));
-    let app_path = Path::new(&app_path_string);
-    let paths = fs::read_dir(app_path).unwrap();
-    let mut to_replace_icon: String = String::new();
-    for path in paths {
-        let path_string = path.unwrap().path().display().to_string();
-        if path_string.contains("icns") {
-            to_replace_icon = path_string;
-        }
-    }
-    to_replace_icon
+    app_path_string = format!("{}", app_path_string.trim().replace("'", ""));
+    app_path_string
 }
 
 async fn main_async() {
@@ -74,6 +62,16 @@ async fn main_async() {
 
     let app_icon_path = app_collect();
     println!("Path: {}", app_icon_path);
+
+    let python_script = r#"import Cocoa
+import sys
+
+Cocoa.NSWorkspace.sharedWorkspace().setIcon_forFile_options_(
+  Cocoa.NSImage.alloc().initWithContentsOfFile_(sys.argv[1]),
+  sys.argv[2],
+  0
+) or sys.exit("Unable to set file icon")
+    "#;
 
     let list_of_icons: Vec<IconParameters> = vec![
         IconParameters { width: 16, scale: 1 },
@@ -109,6 +107,7 @@ async fn main_async() {
         iterations += 1;
 
         if iterations == 14 {
+
             println!("Waiting...");
             
             set_timeout(Duration::from_secs(3)).await;
@@ -126,14 +125,21 @@ async fn main_async() {
 
             println!("Trying to move icon");
 
-            let echo_child_mv = Command::new("mv")
-                .args(["./icons.icns", &app_icon_path[..]])
+            // let echo_child_mv = Command::new("mv")
+            //     .args(["./icons.icns", &app_icon_path[..]])
+            //     .stdout(Stdio::piped())
+            //     .spawn()
+            //     .expect("Failed to start echo process");
+            // drop(echo_child_mv);
+
+            let echo_child_mv = Command::new("python")
+                .args(["-c", python_script, "./icons.icns", &app_icon_path[..]])
                 .stdout(Stdio::piped())
                 .spawn()
                 .expect("Failed to start echo process");
             drop(echo_child_mv);
 
-            println!("Clearing cache");
+            println!("Clearing cache and cleaning up");
             set_timeout(Duration::from_secs(3)).await;
 
             let echo_child_rm = Command::new("bash")
@@ -143,9 +149,19 @@ async fn main_async() {
                 .expect("Failed to start echo process");
             drop(echo_child_rm);
 
-            println!("Icon moved");
-            
+            set_timeout(Duration::from_secs(3)).await;
+
+            let echo_child_rm_c = Command::new("rm")
+                .args(["-rf", "./icons.iconset"])
+                .stdout(Stdio::piped())
+                .spawn()
+                .expect("Failed to start echo process");
+            drop(echo_child_rm_c);
+
+            println!("Icon changed");
+            println!("\n");
             println!("If you like my work, consider buying me a coffee!");
+            println!("\n");
             println!("BTC: bc1q9sk8gxjvhdneqlh4m80mjw3s5uvzfmph3fqq02");
             println!("ETH: 0x5c1FbEa600C5483562A28aabC9E707bBCEe6F98c");
             println!("DOGE: DTvRUW2zBZyZwkQ48BPYKaorDV7KPTMTQS")
