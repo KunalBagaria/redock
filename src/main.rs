@@ -43,6 +43,7 @@ fn png_collect() -> String {
     println!("Drag your png here");
     let mut path = String::new();
     io::stdin().read_line(&mut path).expect("Not a valid path of a png!");
+    path = path.replace("\\", "");
     path
 }
 
@@ -50,7 +51,7 @@ fn app_collect() -> String {
     println!("Drag your app here");
     let mut app_path_string = String::new();
     io::stdin().read_line(&mut app_path_string).expect("Not a valid path of a application!");
-    app_path_string = format!("{}", app_path_string.trim().replace("'", ""));
+    app_path_string = format!("{}", app_path_string.trim().replace("'", "").replace("\\", ""));
     app_path_string
 }
 
@@ -158,7 +159,7 @@ Cocoa.NSWorkspace.sharedWorkspace().setIcon_forFile_options_(
                 .expect("Failed to start echo process");
             drop(echo_child_rm_c);
 
-            println!("Icon changed");
+            println!("Process Complete");
             println!("\n");
             println!("If you like my work, consider buying me a coffee!");
             println!("\n");
