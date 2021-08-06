@@ -1,6 +1,6 @@
 [package]
-name = "mac-app-icon-replace"
-version = "1.0.0"
+name = "redock"
+version = "1.2.0"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
