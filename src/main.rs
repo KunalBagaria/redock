@@ -1,8 +1,12 @@
 use std::io;
+use std::env;
 use std::time::Duration;
 use settimeout::set_timeout;
 use futures::executor::block_on;
 use std::process::{ Command, Stdio };
+
+mod filesystem;
+pub use crate::filesystem::functions;
 
 struct IconParameters {
     pub width: u32,
@@ -18,25 +22,6 @@ impl IconParameters {
         };
         icon_name
     }
-}
-
-fn mkdir() {
-    let echo_child = Command::new("mkdir")
-        .arg("icons")
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("Failed to start echo process");
-    println!("Folder created");
-    drop(echo_child);
-}
-
-fn rename() {
-    let echo_child = Command::new("mv")
-        .args(["./icons", "./icons.iconset"])
-        .spawn()
-        .expect("Failed to start echo process");
-    println!("Trying to rename icons folder");
-    drop(echo_child);
 }
 
 fn png_collect() -> String {
@@ -56,13 +41,32 @@ fn app_collect() -> String {
 }
 
 async fn main_async() {
-    let png_path: String = png_collect();
-    println!("Icon Path: {}", png_path);
-    let mut iterations: u8 = 0;
-    mkdir();
 
-    let app_icon_path = app_collect();
+    let args: Vec<_> = env::args().collect();
+    let mut png_path: String = String::new();
+    let mut app_icon_path: String = String::new();
+
+    if args.len() == 3 {
+        // println!("{:?}", args);
+        png_path = args[1].clone();
+        app_icon_path = args[2].clone();
+    } else if args.len() == 2 {
+        println!(r#"Usage:
+redock <png_path> <app_path>
+"#);
+        return
+    } else {
+        png_path = png_collect();
+        app_icon_path = app_collect();
+    }
+
+    println!("Icon Path: {}", png_path);
     println!("Path: {}", app_icon_path);
+
+    let mut iterations: u8 = 0;
+
+    let folder = functions::mkdir();
+    drop(folder);
 
     let python_script = r#"import Cocoa
 import sys
@@ -112,7 +116,9 @@ Cocoa.NSWorkspace.sharedWorkspace().setIcon_forFile_options_(
             println!("Waiting...");
             
             set_timeout(Duration::from_secs(3)).await;
-            rename();
+
+            let renamed = functions::rename();
+            drop(renamed);
 
             let echo_child = Command::new("iconutil")
                 .args(["-c", "icns", "./icons.iconset", "-o", "./icons.icns"])
@@ -125,13 +131,6 @@ Cocoa.NSWorkspace.sharedWorkspace().setIcon_forFile_options_(
             set_timeout(Duration::from_secs(3)).await;
 
             println!("Trying to move icon");
-
-            // let echo_child_mv = Command::new("mv")
-            //     .args(["./icons.icns", &app_icon_path[..]])
-            //     .stdout(Stdio::piped())
-            //     .spawn()
-            //     .expect("Failed to start echo process");
-            // drop(echo_child_mv);
 
             let echo_child_mv = Command::new("python")
                 .args(["-c", python_script, "./icons.icns", &app_icon_path[..]])
@@ -152,21 +151,13 @@ Cocoa.NSWorkspace.sharedWorkspace().setIcon_forFile_options_(
 
             set_timeout(Duration::from_secs(3)).await;
 
-            let echo_child_rm_c = Command::new("rm")
-                .args(["-rf", "./icons.iconset"])
-                .stdout(Stdio::piped())
-                .spawn()
-                .expect("Failed to start echo process");
-            drop(echo_child_rm_c);
+            let removed_folder = functions::remove();
+            drop(removed_folder);
+
+            let deleted_icon = functions::del();
+            drop(deleted_icon);
 
             println!("Process Complete");
-            println!("\n");
-            println!("If you like my work, consider buying me a coffee!");
-            println!("\n");
-            println!("BTC: bc1q9sk8gxjvhdneqlh4m80mjw3s5uvzfmph3fqq02");
-            println!("ETH: 0x5c1FbEa600C5483562A28aabC9E707bBCEe6F98c");
-            println!("DOGE: DTvRUW2zBZyZwkQ48BPYKaorDV7KPTMTQS")
-
         }
 
     }
